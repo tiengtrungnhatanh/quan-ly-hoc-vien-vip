@@ -1,0 +1,1470 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quản lý học viên VIP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- Firebase (dùng để đồng bộ dữ liệu qua nhiều thiết bị). Nếu chưa cấu hình FIREBASE_CONFIG bên dưới, app vẫn chạy bình thường nhưng chỉ lưu trên máy này. -->
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<style>
+  :root{
+    --primary:#0A84FF;
+    --primary-600:#0070e0;
+    --primary-700:#0058b8;
+    --primary-light:rgba(10,132,255,0.14);
+    --violet:#5E5CE6;
+    --violet-light:rgba(94,92,230,0.14);
+
+    --text:#1c1c1e;
+    --text-2:rgba(28,28,30,0.62);
+    --text-3:rgba(28,28,30,0.4);
+    --border:rgba(255,255,255,0.55);
+    --border-strong:rgba(255,255,255,0.85);
+
+    --success:#248a57;
+    --success-light:rgba(48,209,88,0.16);
+    --warning:#b06a00;
+    --warning-light:rgba(255,159,10,0.18);
+    --danger:#d70015;
+    --danger-light:rgba(255,69,58,0.14);
+
+    --radius-xl:30px;
+    --radius-lg:24px;
+    --radius-md:18px;
+    --radius-sm:14px;
+
+    --glass:rgba(255,255,255,0.5);
+    --glass-strong:rgba(255,255,255,0.68);
+    --glass-soft:rgba(255,255,255,0.38);
+    --glass-blur:blur(28px) saturate(190%);
+
+    --shadow-xs:0 1px 2px rgba(20,20,45,0.06);
+    --shadow-sm:0 8px 24px rgba(30,30,70,0.10), inset 0 1px 0 rgba(255,255,255,0.7);
+    --shadow-md:0 16px 40px rgba(30,30,70,0.16), inset 0 1px 0 rgba(255,255,255,0.75);
+    --shadow-lg:0 28px 70px rgba(20,20,55,0.28), inset 0 1px 0 rgba(255,255,255,0.8);
+    --shadow-glow:0 10px 26px rgba(10,132,255,0.38);
+  }
+  *{box-sizing:border-box;}
+  html{-webkit-tap-highlight-color:transparent;}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Plus Jakarta Sans','Inter','Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    color:var(--text);
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    background:#eef1fb;
+    min-height:100vh;
+    position:relative;
+    overflow-x:hidden;
+  }
+  /* ---- Liquid Glass wallpaper: soft blurred colour blobs behind everything ---- */
+  .bg-blob{position:fixed;border-radius:50%;filter:blur(70px);z-index:-2;pointer-events:none;}
+  .bg-blob.b1{top:-18%;left:-12%;width:56vw;height:56vw;background:radial-gradient(circle at 30% 30%, rgba(10,132,255,0.55), rgba(10,132,255,0) 70%);animation:drift1 26s ease-in-out infinite;}
+  .bg-blob.b2{bottom:-22%;right:-14%;width:58vw;height:58vw;background:radial-gradient(circle at 60% 60%, rgba(255,55,95,0.4), rgba(255,55,95,0) 70%);animation:drift2 32s ease-in-out infinite;}
+  .bg-blob.b3{top:32%;right:6%;width:38vw;height:38vw;background:radial-gradient(circle, rgba(94,92,230,0.42), rgba(94,92,230,0) 70%);animation:drift3 22s ease-in-out infinite;}
+  .bg-blob.b4{bottom:8%;left:14%;width:30vw;height:30vw;background:radial-gradient(circle, rgba(48,209,88,0.3), rgba(48,209,88,0) 70%);animation:drift1 30s ease-in-out infinite reverse;}
+  @keyframes drift1{0%,100%{transform:translate(0,0) scale(1);}50%{transform:translate(4%,3%) scale(1.06);}}
+  @keyframes drift2{0%,100%{transform:translate(0,0) scale(1);}50%{transform:translate(-3%,-4%) scale(1.05);}}
+  @keyframes drift3{0%,100%{transform:translate(0,0) scale(1);}50%{transform:translate(-4%,3%) scale(0.95);}}
+
+  h1,h2,h3{font-family:-apple-system,'SF Pro Display','Plus Jakarta Sans',sans-serif;}
+  a{color:inherit;}
+  button{font-family:inherit;}
+  svg.icon{flex-shrink:0;}
+  ::selection{background:var(--primary-light);}
+  :focus-visible{
+    outline:3px solid rgba(10,132,255,0.55);
+    outline-offset:2px;
+    border-radius:10px;
+  }
+  ::-webkit-scrollbar{width:9px;height:9px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:rgba(120,120,150,0.35);border-radius:99px;}
+  ::-webkit-scrollbar-thumb:hover{background:rgba(120,120,150,0.55);}
+
+  /* ---------- Header: floating glass bar, iOS nav-bar style ---------- */
+  header.topbar{
+    display:flex;align-items:center;justify-content:space-between;gap:16px;
+    padding:14px 22px;
+    margin:14px 18px 0;
+    background:var(--glass-strong);
+    backdrop-filter:var(--glass-blur);
+    -webkit-backdrop-filter:var(--glass-blur);
+    border:1px solid var(--border-strong);
+    border-radius:26px;
+    box-shadow:var(--shadow-md);
+    position:sticky;top:14px;z-index:30;
+  }
+  .brand{display:flex;align-items:center;gap:12px;}
+  .brand-mark{
+    width:44px;height:44px;border-radius:14px;flex-shrink:0;
+    background:linear-gradient(150deg,var(--primary) 0%,var(--violet) 100%);
+    display:flex;align-items:center;justify-content:center;color:#fff;
+    box-shadow:var(--shadow-glow), inset 0 1px 0 rgba(255,255,255,0.55);
+    position:relative;overflow:hidden;
+  }
+  .brand-mark::after{content:'';position:absolute;top:-40%;left:-20%;width:80%;height:80%;background:rgba(255,255,255,0.35);border-radius:50%;filter:blur(6px);transform:rotate(-20deg);}
+  header.topbar h1{font-size:18px;margin:0;font-weight:800;color:var(--text);letter-spacing:-0.01em;}
+  header.topbar .sub{font-size:12.5px;color:var(--text-2);margin-top:2px;font-weight:500;}
+  .sync-badge{
+    display:inline-flex;align-items:center;gap:6px;
+    margin-top:6px;font-size:10.5px;font-weight:800;letter-spacing:.02em;
+    padding:3px 10px;border-radius:999px;
+    border:1px solid transparent;
+  }
+  .sync-badge .dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;}
+  .sync-badge.local{color:#a85800;background:rgba(255,159,10,0.18);border-color:rgba(255,159,10,0.3);}
+  .sync-badge.syncing{color:var(--primary-700);background:var(--primary-light);border-color:rgba(10,132,255,0.25);}
+  .sync-badge.synced{color:var(--success);background:var(--success-light);border-color:rgba(48,209,88,0.3);}
+  .sync-badge.error{color:var(--danger);background:var(--danger-light);border-color:rgba(255,69,58,0.3);}
+  @keyframes pulseDot{0%,100%{opacity:1;}50%{opacity:.25;}}
+  .sync-badge.syncing .dot{animation:pulseDot 1s ease-in-out infinite;}
+  .btn-add-student{
+    background:linear-gradient(155deg,var(--primary) 0%,var(--primary-700) 100%);
+    color:#fff;border:1px solid rgba(255,255,255,0.4);
+    padding:11px 20px 11px 16px;border-radius:999px;font-weight:700;font-size:14px;
+    cursor:pointer;display:flex;align-items:center;gap:8px;
+    box-shadow:var(--shadow-glow), inset 0 1px 0 rgba(255,255,255,0.5);
+    transition:transform .2s cubic-bezier(.34,1.4,.64,1), box-shadow .2s ease;
+    position:relative;overflow:hidden;
+  }
+  .btn-add-student:hover{transform:translateY(-2px);box-shadow:0 14px 32px rgba(10,132,255,0.45), inset 0 1px 0 rgba(255,255,255,0.5);}
+  .btn-add-student:active{transform:translateY(0) scale(0.95);}
+
+  /* ---------- Layout ---------- */
+  main.layout{
+    display:grid;
+    grid-template-columns:360px 1fr;
+    gap:22px;
+    padding:22px 28px 70px;
+    max-width:1440px;
+    margin:0 auto;
+    align-items:start;
+  }
+
+  .stats-row{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:16px;
+    grid-column:1/-1;
+  }
+  .stat-card{
+    position:relative;overflow:hidden;
+    background:var(--glass);
+    backdrop-filter:var(--glass-blur);
+    -webkit-backdrop-filter:var(--glass-blur);
+    border-radius:var(--radius-lg);
+    padding:18px 20px;
+    box-shadow:var(--shadow-sm);
+    border:1px solid var(--border);
+    display:flex;align-items:flex-start;justify-content:space-between;gap:10px;
+    transition:transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .25s ease;
+  }
+  .stat-card::before{
+    content:'';position:absolute;inset:0 0 auto 0;height:3px;
+    background:linear-gradient(90deg,var(--stat-color-a,var(--primary)),var(--stat-color-b,var(--violet)));
+    opacity:0.9;
+  }
+  .stat-card:hover{transform:translateY(-4px) scale(1.01);box-shadow:var(--shadow-md);}
+  .stat-card .text{display:flex;flex-direction:column;gap:6px;}
+  .stat-card .label{font-size:12px;color:var(--text-2);font-weight:600;}
+  .stat-card .value{font-size:28px;font-weight:800;color:var(--text);line-height:1;letter-spacing:-0.02em;}
+  .stat-card .icon-badge{
+    width:42px;height:42px;border-radius:13px;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+    background:var(--stat-bg,var(--primary-light));color:var(--stat-fg,var(--primary));
+    border:1px solid rgba(255,255,255,0.6);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,0.6);
+  }
+
+  .panel{
+    background:var(--glass);
+    backdrop-filter:var(--glass-blur);
+    -webkit-backdrop-filter:var(--glass-blur);
+    border-radius:var(--radius-xl);
+    box-shadow:var(--shadow-md);
+    border:1px solid var(--border);
+    padding:20px;
+  }
+
+  /* ---------- Student list ---------- */
+  .student-list-panel h2{
+    font-size:15px;margin:2px 4px 14px;color:var(--text);font-weight:800;
+    display:flex;align-items:center;justify-content:space-between;
+  }
+  .student-list-panel h2 .count{
+    font-size:11.5px;font-weight:700;color:var(--primary-700);background:var(--primary-light);
+    padding:3px 10px;border-radius:999px;
+  }
+  .search-wrap{position:relative;margin-bottom:14px;}
+  .search-wrap svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-3);}
+  .search-box{
+    width:100%;padding:11px 14px 11px 40px;border-radius:999px;
+    border:1px solid var(--border);font-size:14px;
+    background:var(--glass-soft);color:var(--text);
+    backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+    transition:border-color .15s ease, background .15s ease, box-shadow .15s ease;
+  }
+  .search-box:focus{border-color:var(--primary);background:rgba(255,255,255,0.85);box-shadow:0 0 0 4px var(--primary-light);}
+  .search-box::placeholder{color:var(--text-3);}
+
+  #studentList{display:flex;flex-direction:column;gap:9px;max-height:calc(100vh - 320px);overflow-y:auto;padding:2px 2px 2px 0;}
+
+  .student-item{
+    display:flex;align-items:center;gap:12px;
+    padding:12px;border-radius:var(--radius-md);
+    cursor:pointer;
+    border:1px solid var(--border);
+    background:var(--glass-soft);
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    transition:background .18s ease,border-color .18s ease,transform .18s cubic-bezier(.2,.8,.2,1),box-shadow .18s ease;
+  }
+  .student-item:hover{background:rgba(255,255,255,0.7);border-color:var(--border-strong);transform:translateX(3px) scale(1.01);box-shadow:var(--shadow-xs);}
+  .student-item.active{
+    background:linear-gradient(135deg,rgba(10,132,255,0.18) 0%,rgba(94,92,230,0.18) 100%);
+    border-color:rgba(10,132,255,0.5);
+    box-shadow:0 0 0 4px rgba(10,132,255,0.12), var(--shadow-sm);
+  }
+
+  .avatar{
+    width:44px;height:44px;border-radius:14px;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+    font-weight:800;font-size:15px;
+    border:1px solid rgba(255,255,255,0.6);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,0.7);
+  }
+  .avatar-body{flex:1;min-width:0;}
+  .avatar-top{display:flex;align-items:center;justify-content:space-between;gap:6px;}
+  .student-item .name{font-weight:700;font-size:14.5px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+  .hsk-tag{
+    font-size:10.5px;font-weight:800;
+    padding:3px 9px;border-radius:999px;white-space:nowrap;letter-spacing:.02em;
+    border:1px solid rgba(255,255,255,0.5);
+  }
+  .hsk-tag.hsk-1{background:rgba(10,132,255,0.16);color:#004a9f;}
+  .hsk-tag.hsk-2{background:rgba(48,209,88,0.18);color:#186a3f;}
+  .hsk-tag.hsk-3{background:rgba(255,214,10,0.25);color:#8a6300;}
+  .hsk-tag.hsk-4{background:rgba(255,159,10,0.22);color:#a85800;}
+  .hsk-tag.hsk-5{background:rgba(255,55,95,0.16);color:#a30032;}
+  .hsk-tag.hsk-6{background:rgba(94,92,230,0.18);color:#3a37b0;}
+
+  .avatar.hsk-1{background:rgba(10,132,255,0.18);color:#004a9f;}
+  .avatar.hsk-2{background:rgba(48,209,88,0.2);color:#186a3f;}
+  .avatar.hsk-3{background:rgba(255,214,10,0.28);color:#8a6300;}
+  .avatar.hsk-4{background:rgba(255,159,10,0.24);color:#a85800;}
+  .avatar.hsk-5{background:rgba(255,55,95,0.18);color:#a30032;}
+  .avatar.hsk-6{background:rgba(94,92,230,0.2);color:#3a37b0;}
+
+  .student-item .mini{font-size:11.5px;color:var(--text-2);margin-top:4px;font-weight:600;}
+  .student-item .mini b{color:var(--primary-700);font-weight:800;}
+  .student-item .mini-schedule{
+    font-size:11px;color:var(--text-2);margin-top:3px;display:flex;flex-wrap:wrap;gap:5px;align-items:center;font-weight:600;
+  }
+  .student-item .mini-schedule svg{width:11px;height:11px;}
+  .empty-list{color:var(--text-2);font-size:13.5px;padding:36px 12px;text-align:center;}
+  .empty-list svg{display:block;margin:0 auto 10px;color:var(--text-3);}
+
+  /* ---------- Profile panel ---------- */
+  .profile-panel{min-height:420px;}
+  .profile-empty{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:100px 20px;color:var(--text-2);text-align:center;
+  }
+  .profile-empty .icon-circle{
+    width:76px;height:76px;border-radius:50%;
+    background:linear-gradient(135deg,var(--primary-light),var(--violet-light));
+    border:1px solid rgba(255,255,255,0.6);
+    display:flex;align-items:center;justify-content:center;color:var(--primary);
+    margin-bottom:16px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,0.7);
+  }
+  .profile-empty strong{color:var(--text);font-size:15.5px;}
+
+  .profile-header{
+    display:flex;justify-content:space-between;align-items:flex-start;
+    gap:14px;margin-bottom:18px;flex-wrap:wrap;
+  }
+  .profile-header-left{display:flex;align-items:center;gap:14px;flex:1;min-width:200px;}
+  .avatar-lg{
+    width:58px;height:58px;border-radius:17px;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+    font-weight:800;font-size:20px;
+    border:1px solid rgba(255,255,255,0.6);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,0.7);
+  }
+  .profile-name-input{
+    font-size:21px;font-weight:800;border:none;background:transparent;
+    padding:6px 10px;border-radius:12px;width:100%;color:var(--text);
+    letter-spacing:-0.01em;
+  }
+  .profile-name-input:hover{background:rgba(255,255,255,0.5);}
+  .profile-name-input:focus{background:var(--primary-light);}
+
+  .profile-actions{display:flex;gap:8px;flex-wrap:wrap;}
+  .btn{
+    border:none;border-radius:999px;padding:10px 18px;font-size:13.5px;font-weight:700;
+    cursor:pointer;display:inline-flex;align-items:center;gap:7px;
+    transition:transform .18s cubic-bezier(.34,1.4,.64,1), box-shadow .18s ease, background .18s ease;
+    border:1px solid transparent;
+  }
+  .btn:active{transform:scale(0.95);}
+  .btn-primary{background:linear-gradient(155deg,var(--primary),var(--primary-700));color:#fff;box-shadow:0 8px 20px rgba(10,132,255,0.32), inset 0 1px 0 rgba(255,255,255,0.4);border-color:rgba(255,255,255,0.35);}
+  .btn-primary:hover{box-shadow:0 12px 26px rgba(10,132,255,0.42), inset 0 1px 0 rgba(255,255,255,0.4);transform:translateY(-1px);}
+  .btn-outline{background:rgba(255,255,255,0.5);color:var(--primary-700);border:1px solid var(--border-strong);backdrop-filter:blur(8px);}
+  .btn-outline:hover{background:var(--primary-light);border-color:var(--primary);}
+  .btn-danger{background:var(--danger-light);color:var(--danger);border:1px solid rgba(255,69,58,0.3);}
+  .btn-danger:hover{background:rgba(255,69,58,0.22);}
+  .btn-sm{padding:8px 14px;font-size:12.5px;}
+  .btn-icon-only{padding:9px;}
+
+  .manage-sessions-btn{
+    width:100%;justify-content:center;padding:14px;font-size:14.5px;
+    margin-bottom:20px;background:linear-gradient(150deg,var(--primary) 0%,var(--violet) 100%);
+    color:#fff;box-shadow:0 14px 30px rgba(10,132,255,0.34), inset 0 1px 0 rgba(255,255,255,0.45);
+    position:relative;overflow:hidden;border:1px solid rgba(255,255,255,0.4);
+  }
+  .manage-sessions-btn::after{content:'';position:absolute;top:-60%;left:-10%;width:60%;height:120%;background:rgba(255,255,255,0.22);transform:rotate(20deg);filter:blur(4px);}
+  .manage-sessions-btn:hover{box-shadow:0 18px 38px rgba(10,132,255,0.45), inset 0 1px 0 rgba(255,255,255,0.45);transform:translateY(-2px);}
+
+  .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;}
+  .field{display:flex;flex-direction:column;gap:6px;}
+  .field.full{grid-column:1/-1;}
+  .field label{
+    font-size:11.5px;font-weight:800;color:var(--primary-700);text-transform:uppercase;letter-spacing:.06em;
+    display:flex;align-items:center;gap:5px;
+  }
+  .field input[type=text], .field input[type=date], .field input[type=number], .field select, .field textarea{
+    border:1.5px solid var(--border-strong);border-radius:var(--radius-sm);
+    padding:11px 13px;font-size:14.5px;font-weight:600;background:rgba(255,255,255,0.85);color:var(--text);
+    box-shadow:var(--shadow-xs);
+    transition:border-color .15s ease, background .15s ease, box-shadow .15s ease;
+    width:100%;font-family:inherit;
+  }
+  .field input:hover,.field select:hover,.field textarea:hover{background:#fff;border-color:var(--primary);}
+  .field input:focus,.field select:focus,.field textarea:focus{background:#fff;border-color:var(--primary);box-shadow:0 0 0 4px var(--primary-light);}
+  .field textarea{resize:vertical;min-height:64px;font-family:inherit;font-weight:500;}
+
+  .weekday-picker{display:flex;flex-wrap:wrap;gap:7px;}
+  .weekday-chip{
+    padding:8px 13px;border-radius:999px;border:1px solid var(--border);
+    background:rgba(255,255,255,0.45);cursor:pointer;font-size:13px;font-weight:700;color:var(--text-2);
+    transition:all .18s cubic-bezier(.34,1.4,.64,1);user-select:none;
+    backdrop-filter:blur(6px);
+  }
+  .weekday-chip:hover{border-color:var(--primary);color:var(--primary-700);background:rgba(255,255,255,0.7);}
+  .weekday-chip.selected{
+    background:linear-gradient(150deg,var(--primary),var(--primary-700));color:#fff;border-color:transparent;
+    box-shadow:0 6px 16px rgba(10,132,255,0.35), inset 0 1px 0 rgba(255,255,255,0.4);transform:translateY(-1px);
+  }
+
+  .chips-display{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px;}
+  .chip-day{
+    background:var(--primary-light);color:var(--primary-700);
+    padding:5px 12px;border-radius:999px;font-size:12px;font-weight:800;
+    border:1px solid rgba(10,132,255,0.2);
+  }
+  .chip-time{
+    background:var(--success-light);color:var(--success);
+    padding:5px 12px;border-radius:999px;font-size:12px;font-weight:800;
+    display:inline-flex;align-items:center;gap:5px;
+    border:1px solid rgba(48,209,88,0.25);
+  }
+  .chip-time svg{width:12px;height:12px;}
+
+  /* ---- Thời gian học: standout highlight card ---- */
+  .schedule-highlight{
+    background:linear-gradient(135deg, rgba(10,132,255,0.16) 0%, rgba(94,92,230,0.16) 100%);
+    border:1.5px solid rgba(10,132,255,0.32);
+    border-radius:var(--radius-md);
+    padding:16px 18px;
+    box-shadow:0 8px 22px rgba(10,132,255,0.14), inset 0 1px 0 rgba(255,255,255,0.55);
+  }
+  .schedule-highlight label{color:var(--primary-700);font-size:12.5px;}
+  .time-input-wrap{
+    display:flex;align-items:center;gap:10px;
+    background:rgba(255,255,255,0.9);
+    border:1.5px solid rgba(10,132,255,0.35);
+    border-radius:14px;
+    padding:12px 16px;
+    margin-top:6px;
+    box-shadow:var(--shadow-xs);
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  .time-input-wrap svg{color:var(--primary);flex-shrink:0;}
+  .time-input-wrap input{
+    border:none;background:transparent;outline:none;
+    font-size:17px;font-weight:800;color:var(--text);
+    padding:0;width:100%;font-family:inherit;
+  }
+  .time-input-wrap:hover{border-color:var(--primary);}
+  .time-input-wrap:focus-within{border-color:var(--primary);box-shadow:0 0 0 4px var(--primary-light);}
+  .schedule-highlight .chip-time{font-size:13px;padding:6px 14px;}
+  .schedule-highlight .chip-time svg{width:13px;height:13px;}
+
+  .stats-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px;}
+  .mini-stat{
+    position:relative;overflow:hidden;
+    background:rgba(255,255,255,0.4);border:1px solid var(--border);border-radius:var(--radius-md);
+    padding:14px 12px;text-align:center;
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    transition:transform .18s ease, box-shadow .18s ease;
+  }
+  .mini-stat:hover{transform:translateY(-3px);box-shadow:var(--shadow-xs);}
+  .mini-stat .n{font-size:22px;font-weight:800;color:var(--text);}
+  .mini-stat .l{font-size:10.5px;color:var(--text-2);font-weight:700;margin-top:3px;letter-spacing:.04em;}
+  .mini-stat.paid .n{color:var(--primary-700);}
+  .mini-stat.learned .n{color:var(--success);}
+  .mini-stat.remaining .n{color:var(--warning);}
+  .mini-stat.progress .n{color:var(--violet);}
+
+  .content-card{
+    background:rgba(255,255,255,0.62);
+    border:1px solid var(--border-strong);
+    border-radius:var(--radius-lg);
+    padding:18px 20px;
+    margin-bottom:20px;
+    box-shadow:var(--shadow-sm);
+    backdrop-filter:blur(14px) saturate(160%);-webkit-backdrop-filter:blur(14px) saturate(160%);
+  }
+  .content-card .field-grid,
+  .content-card .progress-wrap{margin-bottom:0;}
+
+  .progress-wrap{margin-bottom:22px;}
+  .progress-bar-bg{
+    height:16px;background:rgba(255,255,255,0.55);border:1px solid var(--border-strong);border-radius:999px;overflow:hidden;margin-top:10px;
+    box-shadow:inset 0 2px 4px rgba(20,20,45,0.08);
+  }
+  .progress-bar-fill{
+    height:100%;background:linear-gradient(90deg,var(--primary),var(--violet));
+    border-radius:999px;transition:width .5s cubic-bezier(.2,.8,.2,1);
+    position:relative;box-shadow:inset 0 1px 0 rgba(255,255,255,0.5), 0 0 10px rgba(10,132,255,0.35);
+  }
+  .progress-label{display:flex;justify-content:space-between;font-size:13.5px;color:var(--text);font-weight:800;}
+
+  .section-title{
+    font-size:13px;font-weight:800;color:var(--text);margin:22px 0 12px;
+    display:flex;align-items:center;gap:7px;text-transform:uppercase;letter-spacing:.04em;
+  }
+  .section-title svg{color:var(--primary);}
+
+  .history-list{max-height:230px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-md);background:rgba(255,255,255,0.35);backdrop-filter:blur(10px);}
+  .history-row{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 14px;font-size:13px;
+    border-bottom:1px solid var(--border);
+  }
+  .history-row:last-child{border-bottom:none;}
+  .history-row .hd{color:var(--text-2);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .history-row .hn{font-weight:800;color:var(--primary-700);background:var(--primary-light);padding:3px 10px;border-radius:999px;font-size:12px;flex-shrink:0;}
+
+  /* ---------- Modal: floating glass sheet ---------- */
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(20,20,45,0.35);
+    display:none;align-items:flex-start;justify-content:center;
+    padding:36px 16px;z-index:100;overflow-y:auto;
+    backdrop-filter:blur(8px) saturate(140%);-webkit-backdrop-filter:blur(8px) saturate(140%);
+  }
+  .modal-overlay.open{display:flex;animation:fadeIn .18s ease;}
+  @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+  #modalConfirm{z-index:150;}
+  .modal-box{
+    background:var(--glass-strong);
+    backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
+    border-radius:var(--radius-xl);
+    max-width:780px;width:100%;padding:26px;
+    box-shadow:var(--shadow-lg);
+    animation:pop .25s cubic-bezier(.34,1.3,.64,1);
+    border:1px solid var(--border-strong);
+  }
+  @keyframes pop{from{opacity:0;transform:translateY(24px) scale(.95);}to{opacity:1;transform:none;}}
+  .modal-box.small{max-width:440px;}
+  .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:10px;}
+  .modal-header h3{margin:0;font-size:18px;font-weight:800;display:flex;align-items:center;gap:10px;color:var(--text);}
+  .modal-header h3 .modal-icon{
+    width:34px;height:34px;border-radius:11px;flex-shrink:0;
+    background:linear-gradient(135deg,var(--primary-light),var(--violet-light));color:var(--primary);
+    display:flex;align-items:center;justify-content:center;
+    border:1px solid rgba(255,255,255,0.6);
+  }
+  .modal-header h3 span#sessionsStudentName{color:var(--primary-700);}
+  .modal-close{
+    background:rgba(255,255,255,0.5);border:1px solid var(--border);cursor:pointer;color:var(--text-2);
+    width:34px;height:34px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+    transition:background .15s ease,color .15s ease,transform .15s ease;
+  }
+  .modal-close:hover{background:var(--danger-light);color:var(--danger);}
+  .modal-close:active{transform:scale(0.9);}
+
+  .add-session-form{
+    display:grid;grid-template-columns:1fr 1fr 2fr auto;gap:14px;align-items:end;
+    background:linear-gradient(135deg,rgba(10,132,255,0.1) 0%, rgba(94,92,230,0.1) 100%);
+    padding:18px;border-radius:var(--radius-md);margin-bottom:18px;
+    border:1px solid var(--border);
+  }
+  .add-session-form .field label{color:var(--primary-700);font-size:12px;}
+  .add-session-form .field input{
+    font-size:16px;padding:13px 14px;border-radius:14px;border:1px solid var(--border);background:rgba(255,255,255,0.75);
+  }
+  .add-session-form .btn{padding:13px 22px;font-size:15px;}
+  .session-number-input{
+    display:flex;align-items:center;gap:8px;
+    background:rgba(255,255,255,0.75);border:1px solid var(--border);border-radius:14px;
+    padding:0 14px;
+  }
+  .session-number-input input{
+    border:none;background:transparent;padding:13px 0;font-size:16px;width:100%;
+  }
+  .session-number-input input:focus{outline:none;}
+  .session-number-input:focus-within{border-color:var(--primary);box-shadow:0 0 0 4px var(--primary-light);}
+  .session-total-suffix{color:var(--text-2);font-weight:800;font-size:15px;white-space:nowrap;}
+  .table-number-cell{display:flex;align-items:center;gap:6px;width:100%;}
+  .table-number-cell input{flex:1;min-width:0;text-align:center;font-weight:800;font-size:14.5px;}
+  .table-number-cell .denom{color:var(--text-2);font-weight:700;font-size:13.5px;flex-shrink:0;}
+
+  table.sessions-table{width:100%;border-collapse:collapse;font-size:13.5px;table-layout:fixed;}
+  table.sessions-table th{
+    text-align:left;padding:10px 10px;color:var(--text-2);font-size:11px;
+    text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);
+    background:rgba(255,255,255,0.5);position:sticky;top:0;backdrop-filter:blur(8px);
+  }
+  table.sessions-table th:first-child{border-top-left-radius:12px;}
+  table.sessions-table th:last-child{border-top-right-radius:12px;}
+  table.sessions-table td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:middle;}
+  table.sessions-table tr:hover td{background:rgba(255,255,255,0.4);}
+  table.sessions-table input{
+    border:1px solid transparent;border-radius:10px;padding:7px 9px;font-size:13px;
+    width:100%;background:transparent;transition:background .15s ease,border-color .15s ease;
+  }
+  table.sessions-table input:hover{background:rgba(255,255,255,0.6);border-color:var(--border);}
+  table.sessions-table input:focus{background:rgba(255,255,255,0.9);border-color:var(--primary);}
+  .row-actions{display:flex;gap:6px;white-space:nowrap;}
+  .sessions-table-wrap{max-height:340px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-md);background:rgba(255,255,255,0.25);}
+
+  .quick-paste{margin-top:20px;}
+  .quick-paste textarea{width:100%;min-height:104px;font-family:'ui-monospace','SFMono-Regular','Consolas',monospace;font-size:13px;
+    border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 14px;background:rgba(255,255,255,0.45);
+    backdrop-filter:blur(8px);
+    transition:border-color .15s ease,background .15s ease;}
+  .quick-paste textarea:focus{background:rgba(255,255,255,0.85);border-color:var(--primary);box-shadow:0 0 0 4px var(--primary-light);}
+  .quick-paste .hint{font-size:12px;color:var(--text-2);margin:7px 0 12px;line-height:1.5;}
+
+  /* ---------- Toasts: floating glass pills ---------- */
+  .toast-container{
+    position:fixed;bottom:24px;right:24px;z-index:200;
+    display:flex;flex-direction:column;gap:10px;
+    max-width:340px;
+  }
+  .toast{
+    background:var(--glass-strong);
+    backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
+    color:var(--text);padding:13px 18px;border-radius:999px;
+    font-size:13.5px;font-weight:700;box-shadow:var(--shadow-lg);
+    display:flex;align-items:center;gap:10px;
+    animation:slideIn .25s cubic-bezier(.34,1.3,.64,1);
+    border:1px solid var(--border-strong);
+  }
+  .toast svg{flex-shrink:0;}
+  .toast.success svg{color:var(--success);}
+  .toast.danger svg{color:var(--danger);}
+  .toast:not(.success):not(.danger) svg{color:var(--primary);}
+  @keyframes slideIn{from{opacity:0;transform:translateX(24px) scale(0.9);}to{opacity:1;transform:none;}}
+
+  .empty-sessions{padding:36px;text-align:center;color:var(--text-2);font-size:13.5px;}
+  .empty-sessions svg{display:block;margin:0 auto 10px;color:var(--text-3);}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:0.01ms !important;transition-duration:0.01ms !important;}
+  }
+
+  @media (max-width:880px){
+    main.layout{grid-template-columns:1fr;padding:16px;gap:16px;}
+    .stats-row{grid-template-columns:repeat(2,1fr);}
+    .field-grid{grid-template-columns:1fr;}
+    .stats-cards{grid-template-columns:repeat(2,1fr);}
+    .add-session-form{grid-template-columns:1fr 1fr;}
+    header.topbar{margin:10px 10px 0;padding:12px 16px;flex-wrap:wrap;gap:10px;}
+    .modal-box{padding:18px;}
+    .sessions-table-wrap{overflow-x:auto;}
+    #studentList{max-height:none;}
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-blob b1" aria-hidden="true"></div>
+<div class="bg-blob b2" aria-hidden="true"></div>
+<div class="bg-blob b3" aria-hidden="true"></div>
+<div class="bg-blob b4" aria-hidden="true"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-mark">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5Z"/><path d="M6 12v5c0 1.1 2.7 2.5 6 2.5s6-1.4 6-2.5v-5"/><path d="M22 10v6"/></svg>
+    </div>
+    <div>
+      <h1>Quản lý học viên VIP</h1>
+      <div class="sub">Theo dõi buổi học, tiến độ và lịch trình lớp tiếng Trung VIP</div>
+      <div class="sync-badge" id="syncStatus"><span class="dot"></span><span class="sync-text">Đang khởi động...</span></div>
+    </div>
+  </div>
+  <button class="btn-add-student" id="btnAddStudent">
+    <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+    Thêm học viên
+  </button>
+</header>
+
+<main class="layout">
+  <div class="stats-row">
+    <div class="stat-card" style="--stat-color-a:#5b4fe8;--stat-color-b:#8b5cf6;">
+      <div class="text">
+        <div class="label">Tổng học viên</div>
+        <div class="value" id="statTotalStudents">0</div>
+      </div>
+      <div class="icon-badge" style="--stat-bg:var(--primary-light);--stat-fg:var(--primary-700);">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      </div>
+    </div>
+    <div class="stat-card" style="--stat-color-a:#0d9668;--stat-color-b:#34d399;">
+      <div class="text">
+        <div class="label">Tổng buổi đã học</div>
+        <div class="value" id="statTotalLearned">0</div>
+      </div>
+      <div class="icon-badge" style="--stat-bg:var(--success-light);--stat-fg:var(--success);">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="m9 12 2 2 4-4"/></svg>
+      </div>
+    </div>
+    <div class="stat-card" style="--stat-color-a:#d97706;--stat-color-b:#f59e0b;">
+      <div class="text">
+        <div class="label">Tổng buổi còn lại</div>
+        <div class="value" id="statTotalRemaining">0</div>
+      </div>
+      <div class="icon-badge" style="--stat-bg:var(--warning-light);--stat-fg:var(--warning);">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+      </div>
+    </div>
+    <div class="stat-card" style="--stat-color-a:#8b5cf6;--stat-color-b:#5b4fe8;">
+      <div class="text">
+        <div class="label">Lịch học / tuần</div>
+        <div class="value" id="statWeeklySlots">0</div>
+      </div>
+      <div class="icon-badge" style="--stat-bg:var(--violet-light);--stat-fg:var(--violet);">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel student-list-panel">
+    <h2>Danh sách học viên <span class="count" id="studentCountBadge">0</span></h2>
+    <div class="search-wrap">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <input type="text" class="search-box" id="searchInput" placeholder="Tìm học viên...">
+    </div>
+    <div id="studentList"></div>
+  </div>
+
+  <div class="panel profile-panel" id="profilePanel"></div>
+</main>
+
+<!-- Add student modal -->
+<div class="modal-overlay" id="modalAddStudent">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3><span class="modal-icon"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg></span>Thêm học viên mới</h3>
+      <button class="modal-close" data-close="modalAddStudent" aria-label="Đóng">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="field-grid" style="margin-bottom:6px;">
+      <div class="field full">
+        <label>Họ và tên</label>
+        <input type="text" id="newStudentName" placeholder="Ví dụ: Nguyễn Văn A">
+      </div>
+      <div class="field">
+        <label>Số buổi học (đã đóng)</label>
+        <input type="number" id="newStudentPaid" min="0" value="0">
+      </div>
+      <div class="field">
+        <label>Trình độ hiện tại</label>
+        <select id="newStudentHsk"></select>
+      </div>
+      <div class="field full">
+        <label>Lịch học</label>
+        <div class="weekday-picker" id="newStudentWeekdays"></div>
+      </div>
+      <div class="field full">
+        <label>Thời gian học</label>
+        <input type="text" id="newStudentTime" placeholder="Ví dụ: 20:00–21:30">
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:8px;">
+      <button class="btn btn-outline" data-close="modalAddStudent">Huỷ</button>
+      <button class="btn btn-primary" id="confirmAddStudent">Tạo hồ sơ</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete confirm modal -->
+<div class="modal-overlay" id="modalConfirm">
+  <div class="modal-box small">
+    <div class="modal-header">
+      <h3><span class="modal-icon" style="background:var(--danger-light);color:var(--danger);"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span><span id="confirmTitle">Xác nhận</span></h3>
+      <button class="modal-close" data-close="modalConfirm" aria-label="Đóng">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <p id="confirmMessage" style="color:var(--text-2);font-size:14px;line-height:1.6;"></p>
+    <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:14px;">
+      <button class="btn btn-outline" data-close="modalConfirm">Huỷ</button>
+      <button class="btn btn-danger" id="confirmActionBtn">Xoá</button>
+    </div>
+  </div>
+</div>
+
+<!-- Manage sessions modal -->
+<div class="modal-overlay" id="modalSessions">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3><span class="modal-icon"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>Quản lý buổi học — <span id="sessionsStudentName"></span></h3>
+      <button class="modal-close" data-close="modalSessions" aria-label="Đóng">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <div class="add-session-form">
+      <div class="field">
+        <label>Ngày học</label>
+        <input type="date" id="newSessionDate">
+      </div>
+      <div class="field">
+        <label>Số buổi</label>
+        <div class="session-number-input">
+          <input type="number" min="1" id="newSessionNumber" placeholder="1">
+          <span class="session-total-suffix">/ <span id="newSessionTotalLabel">0</span></span>
+        </div>
+      </div>
+      <div class="field">
+        <label>Ghi chú buổi học</label>
+        <input type="text" id="newSessionNote" placeholder="Nội dung, bài học...">
+      </div>
+      <button class="btn btn-primary" id="btnAddSession">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+        Thêm
+      </button>
+    </div>
+
+    <div class="section-title">
+      <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
+      Danh sách buổi học
+    </div>
+    <div class="sessions-table-wrap">
+      <table class="sessions-table" id="sessionsTable">
+        <thead>
+          <tr><th style="width:26%;">Ngày học</th><th style="width:26%;">Số buổi</th><th style="width:26%;">Ghi chú</th><th style="width:22%;">Thao tác</th></tr>
+        </thead>
+        <tbody id="sessionsTableBody"></tbody>
+      </table>
+    </div>
+
+    <div class="quick-paste">
+      <div class="section-title">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        Nhập nhanh từ danh sách
+      </div>
+      <div class="hint">Dán nhiều dòng, mỗi dòng dạng "24/2: 1" (chỉ cần ghi số buổi, tổng số buổi tự lấy từ hồ sơ học viên). Hệ thống tự nhận diện và sắp xếp theo ngày.</div>
+      <textarea id="quickPasteInput" placeholder="24/2: 1&#10;27/2: 2&#10;4/3: 3"></textarea>
+      <div style="display:flex;justify-content:flex-end;margin-top:10px;">
+        <button class="btn btn-primary" id="btnQuickPaste">Nhập vào lịch sử</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+(function(){
+  const STORAGE_KEY = 'vip_students_data_v1';
+
+  // ====== CẤU HÌNH FIREBASE (điền để đồng bộ dữ liệu giữa điện thoại & máy tính) ======
+  // 1. Vào https://console.firebase.google.com → Tạo dự án mới (miễn phí).
+  // 2. Trong dự án → biểu tượng "</>"" (Add app → Web) → đặt tên bất kỳ → Đăng ký app.
+  // 3. Firebase sẽ hiện đoạn "firebaseConfig" — copy 6 dòng đó, dán đè vào object bên dưới.
+  // 4. Vào mục Firestore Database → Create database → chọn chế độ "Test mode" (hoặc đặt rule
+  //    cho phép đọc/ghi vì đây là app dùng riêng cho 1 giáo viên) → Enable.
+  // Nếu để trống, app vẫn chạy bình thường nhưng chỉ lưu trên máy đang dùng (không đồng bộ).
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyCbQe_yMAFT4V04-LbuWNk3vB8MNU5mPX8",
+    authDomain: "quan-ly-hoc-vien-vip.firebaseapp.com",
+    projectId: "quan-ly-hoc-vien-vip",
+    storageBucket: "quan-ly-hoc-vien-vip.firebasestorage.app",
+    messagingSenderId: "759448971751",
+    appId: "1:759448971751:web:d1524fc67db2763583f542"
+  };
+
+  const CLOUD_ENABLED = !!(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.projectId) && (typeof firebase !== 'undefined');
+  let db = null, cloudDocRef = null;
+  if(CLOUD_ENABLED){
+    try{
+      firebase.initializeApp(FIREBASE_CONFIG);
+      db = firebase.firestore();
+      cloudDocRef = db.collection('vip_class').doc('students_data');
+    }catch(e){
+      console.error('Không khởi tạo được Firebase:', e);
+      db = null; cloudDocRef = null;
+    }
+  }
+
+  const WEEKDAYS = [
+    {key:'T2', label:'Thứ 2'}, {key:'T3', label:'Thứ 3'}, {key:'T4', label:'Thứ 4'},
+    {key:'T5', label:'Thứ 5'}, {key:'T6', label:'Thứ 6'}, {key:'T7', label:'Thứ 7'}, {key:'CN', label:'CN'}
+  ];
+  const HSK_OPTIONS = ['HSK 1','HSK 2','HSK 3','HSK 4','HSK 5','HSK 6'];
+
+  const ICONS = {
+    clock:'<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>',
+    user:'<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg>',
+    calendarLine:'<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M16 2v4M8 2v4M3 10h18"/><line x1="8" y1="15" x2="10" y2="15"/></svg>'
+  };
+
+  let state = { students: [], selectedId: null };
+  let pendingConfirmAction = null;
+
+  function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+
+  function loadLocalCache(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(raw){ state.students = JSON.parse(raw); }
+    }catch(e){ state.students = []; }
+    migrateSessions();
+  }
+
+  // Backward-compat: old sessions stored sessionNumber as "1/20" string.
+  // New model stores just the numerator (session.number); the total is always
+  // read live from student.paid.
+  function migrateSessions(){
+    (state.students||[]).forEach(student=>{
+      (student.sessions||[]).forEach(sess=>{
+        if(sess.number === undefined || sess.number === null){
+          const m = /^(\d+)\s*\/\s*\d+$/.exec((sess.sessionNumber||'').trim());
+          sess.number = m ? parseInt(m[1],10) : (parseInt(sess.sessionNumber,10) || 1);
+        }
+      });
+    });
+  }
+
+  function setSyncStatus(status){
+    const el = document.getElementById('syncStatus');
+    if(!el) return;
+    el.className = 'sync-badge ' + status;
+    const label = {
+      local: 'Chỉ lưu trên máy này (chưa bật đồng bộ)',
+      syncing: 'Đang đồng bộ...',
+      synced: 'Đã đồng bộ trực tuyến',
+      error: 'Lỗi đồng bộ · đang dùng dữ liệu trên máy này'
+    }[status] || status;
+    const textEl = el.querySelector('.sync-text');
+    if(textEl) textEl.textContent = label;
+  }
+
+  // save(): always keep a local cache (so the app opens instantly even offline),
+  // and if Firebase is configured, push the same data to Firestore so every
+  // device connected to it sees the update in real time.
+  function save(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.students));
+    if(CLOUD_ENABLED && cloudDocRef){
+      setSyncStatus('syncing');
+      cloudDocRef.set({ students: state.students, updatedAt: Date.now() })
+        .then(()=> setSyncStatus('synced'))
+        .catch((e)=>{
+          console.error('Lỗi đồng bộ Firestore:', e);
+          setSyncStatus('error');
+        });
+    }
+  }
+
+  // Boots the app: shows the locally cached data immediately, then (if Firebase
+  // is configured) subscribes to real-time updates so changes made on another
+  // device (phone/computer) appear here automatically.
+  function initApp(){
+    loadLocalCache();
+    renderAll();
+
+    if(!CLOUD_ENABLED || !cloudDocRef){
+      setSyncStatus('local');
+      return;
+    }
+
+    setSyncStatus('syncing');
+    cloudDocRef.onSnapshot((doc)=>{
+      if(doc.exists){
+        const data = doc.data();
+        state.students = data.students || [];
+        migrateSessions();
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state.students));
+      } else {
+        // First time ever: seed the cloud doc with whatever is cached locally.
+        cloudDocRef.set({ students: state.students, updatedAt: Date.now() }).catch(()=>{});
+      }
+      setSyncStatus('synced');
+      renderAll();
+    }, (err)=>{
+      console.error('Lỗi kết nối Firestore:', err);
+      setSyncStatus('error');
+      toast('Không kết nối được máy chủ đồng bộ, đang dùng dữ liệu trên máy này','danger');
+    });
+  }
+
+  function toast(msg, type){
+    const c = document.getElementById('toastContainer');
+    const el = document.createElement('div');
+    el.className = 'toast' + (type ? ' '+type : '');
+    let iconSvg;
+    if(type==='success'){
+      iconSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>';
+    } else if(type==='danger'){
+      iconSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
+    } else {
+      iconSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>';
+    }
+    el.innerHTML = iconSvg + '<span></span>';
+    el.querySelector('span').textContent = msg;
+    c.appendChild(el);
+    setTimeout(()=>{ el.style.opacity='0'; el.style.transition='opacity .25s'; setTimeout(()=>el.remove(),250); }, 2600);
+  }
+
+  function openModal(id){ document.getElementById(id).classList.add('open'); }
+  function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+
+  document.querySelectorAll('[data-close]').forEach(btn=>{
+    btn.addEventListener('click', ()=> closeModal(btn.getAttribute('data-close')));
+  });
+  document.querySelectorAll('.modal-overlay').forEach(ov=>{
+    ov.addEventListener('click', (e)=>{ if(e.target === ov) ov.classList.remove('open'); });
+  });
+  document.addEventListener('keydown', (e)=>{
+    if(e.key === 'Escape'){
+      document.querySelectorAll('.modal-overlay.open').forEach(ov=>ov.classList.remove('open'));
+    }
+  });
+
+  function confirmAction(title, message, onConfirm){
+    document.getElementById('confirmTitle').textContent = title;
+    document.getElementById('confirmMessage').textContent = message;
+    pendingConfirmAction = onConfirm;
+    openModal('modalConfirm');
+  }
+  document.getElementById('confirmActionBtn').addEventListener('click', ()=>{
+    if(pendingConfirmAction) pendingConfirmAction();
+    closeModal('modalConfirm');
+    pendingConfirmAction = null;
+  });
+
+  function getStudent(id){ return state.students.find(s=>s.id===id); }
+
+  function recalc(student){
+    if(student.learned > student.paid) student.learned = student.paid;
+    if(student.learned < 0) student.learned = 0;
+    if(student.paid < 0) student.paid = 0;
+    student.remaining = student.paid - student.learned;
+  }
+
+  // Keep "Số buổi đã học" in sync with the highest buổi-thứ-mấy number recorded
+  // in Quản lý buổi học, so the teacher never has to type it twice.
+  function syncLearnedFromSessions(student){
+    const sessions = student.sessions || [];
+    if(sessions.length===0) return;
+    const maxNum = sessions.reduce((max,s)=> Math.max(max, s.number||0), 0);
+    student.learned = maxNum;
+    recalc(student);
+  }
+
+  function initials(name){
+    const parts = (name||'').trim().split(/\s+/).filter(Boolean);
+    if(parts.length===0) return '?';
+    if(parts.length===1) return parts[0].slice(0,2).toUpperCase();
+    return (parts[parts.length-2][0] + parts[parts.length-1][0]).toUpperCase();
+  }
+
+  // ---------- Rendering: stats ----------
+  function renderStats(){
+    document.getElementById('statTotalStudents').textContent = state.students.length;
+    document.getElementById('studentCountBadge').textContent = state.students.length;
+    let totalLearned=0, totalRemaining=0, weeklySlots=0;
+    state.students.forEach(s=>{
+      totalLearned += s.learned||0;
+      totalRemaining += s.remaining||0;
+      weeklySlots += (s.weekDays||[]).length;
+    });
+    document.getElementById('statTotalLearned').textContent = totalLearned;
+    document.getElementById('statTotalRemaining').textContent = totalRemaining;
+    document.getElementById('statWeeklySlots').textContent = weeklySlots;
+  }
+
+  // ---------- Rendering: student list ----------
+  function renderStudentList(){
+    const listEl = document.getElementById('studentList');
+    const q = (document.getElementById('searchInput').value||'').trim().toLowerCase();
+    const filtered = state.students.filter(s=> s.name.toLowerCase().includes(q));
+    listEl.innerHTML = '';
+    if(filtered.length===0){
+      listEl.innerHTML = `<div class="empty-list">
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        Chưa có học viên nào phù hợp.
+      </div>`;
+      return;
+    }
+    filtered.forEach(s=>{
+      const item = document.createElement('div');
+      item.className = 'student-item' + (s.id===state.selectedId ? ' active' : '');
+      item.tabIndex = 0;
+      const scheduleText = (s.weekDays||[]).length ? (s.weekDays||[]).join(', ') : 'Chưa xếp lịch';
+      const timeText = s.timeSlot ? ` ${ICONS.clock} ${escapeHtml(s.timeSlot)}` : '';
+      const cls = hskClass(s.hsk);
+      item.innerHTML = `
+        <div class="avatar ${cls}">${initials(s.name)}</div>
+        <div class="avatar-body">
+          <div class="avatar-top">
+            <div class="name">${escapeHtml(s.name || '(Chưa đặt tên)')}</div>
+            <span class="hsk-tag ${cls}">${s.hsk}</span>
+          </div>
+          <div class="mini-schedule">${escapeHtml(scheduleText)}${timeText}</div>
+          <div class="mini">Còn lại: <b>${s.remaining}</b> buổi</div>
+        </div>
+      `;
+      item.addEventListener('click', ()=>{ state.selectedId = s.id; renderAll(); });
+      item.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ state.selectedId = s.id; renderAll(); }});
+      listEl.appendChild(item);
+    });
+  }
+
+  function escapeHtml(str){
+    const d = document.createElement('div'); d.textContent = str||''; return d.innerHTML;
+  }
+
+  function hskClass(hsk){
+    const m = /HSK\s*(\d)/.exec(hsk||'');
+    return m ? `hsk-${m[1]}` : 'hsk-1';
+  }
+
+  // ---------- Rendering: profile ----------
+  function renderProfile(){
+    const panel = document.getElementById('profilePanel');
+    const student = getStudent(state.selectedId);
+    if(!student){
+      panel.innerHTML = `
+        <div class="profile-empty">
+          <div class="icon-circle">${ICONS.user}</div>
+          <div><strong>Chưa chọn học viên</strong></div>
+          <div style="font-size:13px;margin-top:6px;max-width:280px;">Chọn một học viên ở danh sách bên trái để xem hồ sơ chi tiết.</div>
+        </div>`;
+      return;
+    }
+    recalc(student);
+    const progress = student.paid>0 ? Math.round((student.learned/student.paid)*100) : 0;
+    const cls = hskClass(student.hsk);
+
+    panel.innerHTML = `
+      <div class="profile-header">
+        <div class="profile-header-left">
+          <div class="avatar-lg ${cls}">${initials(student.name)}</div>
+          <input type="text" class="profile-name-input" id="f_name" value="${escapeHtml(student.name)}" placeholder="Họ tên học viên" aria-label="Họ tên học viên">
+        </div>
+        <div class="profile-actions">
+          <button class="btn btn-danger btn-sm" id="btnDeleteStudent">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+            Xoá học viên
+          </button>
+        </div>
+      </div>
+
+      <button class="btn manage-sessions-btn" id="btnOpenSessions">
+        <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        Quản lý buổi học
+      </button>
+
+      <div class="stats-cards">
+        <div class="mini-stat paid"><div class="n">${student.paid}</div><div class="l">ĐÃ ĐÓNG</div></div>
+        <div class="mini-stat learned"><div class="n">${student.learned}</div><div class="l">ĐÃ HỌC</div></div>
+        <div class="mini-stat remaining"><div class="n">${student.remaining}</div><div class="l">CÒN LẠI</div></div>
+        <div class="mini-stat progress"><div class="n">${progress}%</div><div class="l">TIẾN ĐỘ</div></div>
+      </div>
+
+      <div class="content-card">
+        <div class="progress-wrap">
+          <div class="progress-label"><span>Tiến độ học tập</span><span>${student.learned}/${student.paid} buổi</span></div>
+          <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${progress}%;"></div></div>
+        </div>
+      </div>
+
+      <div class="content-card">
+        <div class="field-grid">
+          <div class="field">
+            <label>Trình độ HSK</label>
+            <select id="f_hsk">
+              ${HSK_OPTIONS.map(h=>`<option value="${h}" ${student.hsk===h?'selected':''}>${h}</option>`).join('')}
+            </select>
+          </div>
+          <div class="field">
+            <label>Ngày bắt đầu học</label>
+            <input type="date" id="f_start" value="${student.startDate||''}">
+          </div>
+          <div class="field full">
+            <label>Mục tiêu học</label>
+            <input type="text" id="f_goal" value="${escapeHtml(student.goal||'')}" placeholder="Ví dụ: Thi HSK4 vào tháng 12">
+          </div>
+          <div class="field">
+            <label>Số buổi đã đóng</label>
+            <input type="number" id="f_paid" min="0" value="${student.paid}">
+          </div>
+          <div class="field">
+            <label>Số buổi đã học</label>
+            <input type="number" id="f_learned" min="0" value="${student.learned}">
+          </div>
+          <div class="field full">
+            <label>Lịch học cố định</label>
+            <div class="weekday-picker" id="f_weekdays">
+              ${WEEKDAYS.map(w=>`<span class="weekday-chip ${((student.weekDays||[]).includes(w.key))?'selected':''}" data-key="${w.key}" tabindex="0">${w.label}</span>`).join('')}
+            </div>
+          </div>
+          <div class="field full schedule-highlight">
+            <label>
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+              Thời gian học
+            </label>
+            <div class="time-input-wrap">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+              <input type="text" id="f_time" value="${escapeHtml(student.timeSlot||'')}" placeholder="Ví dụ: 20:00–21:30">
+            </div>
+            <div class="chips-display">
+              ${(student.weekDays||[]).map(k=>`<span class="chip-day">${k}</span>`).join('')}
+              ${student.timeSlot ? `<span class="chip-time">${ICONS.clock} ${escapeHtml(student.timeSlot)}</span>` : ''}
+            </div>
+          </div>
+          <div class="field full">
+            <label>Ghi chú riêng</label>
+            <textarea id="f_notes" placeholder="Ghi chú về học viên...">${escapeHtml(student.notes||'')}</textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-title">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13a9 9 0 1 0 2.13-6.36L3 8"/><path d="M12 7v5l4 2"/></svg>
+        Lịch sử buổi học gần đây
+      </div>
+      <div class="history-list" id="historyPreview"></div>
+    `;
+
+    renderHistoryPreview(student);
+
+    // bind events
+    document.getElementById('f_name').addEventListener('change', (e)=>{ student.name = e.target.value.trim() || 'Học viên mới'; save(); renderAll(); toast('Đã lưu tên học viên','success'); });
+    document.getElementById('f_goal').addEventListener('change', (e)=>{ student.goal = e.target.value; save(); toast('Đã lưu mục tiêu','success'); });
+    document.getElementById('f_hsk').addEventListener('change', (e)=>{ student.hsk = e.target.value; save(); renderAll(); toast('Đã cập nhật trình độ','success'); });
+    document.getElementById('f_start').addEventListener('change', (e)=>{ student.startDate = e.target.value; save(); toast('Đã cập nhật ngày bắt đầu','success'); });
+    document.getElementById('f_time').addEventListener('change', (e)=>{ student.timeSlot = e.target.value; save(); renderProfile(); toast('Đã cập nhật giờ học','success'); });
+    document.getElementById('f_notes').addEventListener('change', (e)=>{ student.notes = e.target.value; save(); toast('Đã lưu ghi chú','success'); });
+
+    document.getElementById('f_paid').addEventListener('change', (e)=>{
+      let v = parseInt(e.target.value,10); if(isNaN(v)||v<0) v=0;
+      student.paid = v;
+      recalc(student);
+      save(); renderAll();
+      toast('Đã cập nhật số buổi đã đóng','success');
+    });
+    document.getElementById('f_learned').addEventListener('change', (e)=>{
+      let v = parseInt(e.target.value,10); if(isNaN(v)||v<0) v=0;
+      if(v > student.paid) { v = student.paid; toast('Số buổi đã học không được vượt quá số buổi đã đóng','danger'); }
+      student.learned = v;
+      recalc(student);
+      save(); renderAll();
+      toast('Đã cập nhật số buổi đã học','success');
+    });
+
+    document.querySelectorAll('#f_weekdays .weekday-chip').forEach(chip=>{
+      const toggle = ()=>{
+        const key = chip.getAttribute('data-key');
+        student.weekDays = student.weekDays || [];
+        const idx = student.weekDays.indexOf(key);
+        if(idx>=0) student.weekDays.splice(idx,1); else student.weekDays.push(key);
+        save(); renderAll();
+        toast('Đã cập nhật lịch học','success');
+      };
+      chip.addEventListener('click', toggle);
+      chip.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggle(); }});
+    });
+
+    document.getElementById('btnDeleteStudent').addEventListener('click', ()=>{
+      confirmAction('Xoá học viên?', `Bạn có chắc muốn xoá hồ sơ của "${student.name}"? Hành động này không thể hoàn tác.`, ()=>{
+        state.students = state.students.filter(s=>s.id!==student.id);
+        state.selectedId = null;
+        save(); renderAll();
+        toast('Đã xoá học viên','danger');
+      });
+    });
+
+    document.getElementById('btnOpenSessions').addEventListener('click', ()=>{
+      openSessionsModal(student.id);
+    });
+  }
+
+  function renderHistoryPreview(student){
+    const el = document.getElementById('historyPreview');
+    const sessions = (student.sessions||[]).slice().sort((a,b)=> a.date < b.date ? 1 : -1).slice(0,5);
+    if(sessions.length===0){
+      el.innerHTML = `<div class="empty-sessions">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        Chưa có buổi học nào được ghi nhận.
+      </div>`;
+      return;
+    }
+    el.innerHTML = sessions.map(s=>`
+      <div class="history-row">
+        <span class="hd">${formatDateDisplay(s.date)} ${s.note ? '· '+escapeHtml(s.note) : ''}</span>
+        <span class="hn">${s.number}/${student.paid}</span>
+      </div>
+    `).join('');
+  }
+
+  function formatDateDisplay(iso){
+    if(!iso) return '';
+    const [y,m,d] = iso.split('-');
+    return `${d}/${m}/${y}`;
+  }
+
+  // ---------- Add student ----------
+  let newStudentWeekDays = [];
+
+  function renderNewStudentWeekdayPicker(){
+    const el = document.getElementById('newStudentWeekdays');
+    el.innerHTML = WEEKDAYS.map(w=>`<span class="weekday-chip ${newStudentWeekDays.includes(w.key)?'selected':''}" data-key="${w.key}" tabindex="0">${w.label}</span>`).join('');
+    el.querySelectorAll('.weekday-chip').forEach(chip=>{
+      const toggle = ()=>{
+        const key = chip.getAttribute('data-key');
+        const idx = newStudentWeekDays.indexOf(key);
+        if(idx>=0) newStudentWeekDays.splice(idx,1); else newStudentWeekDays.push(key);
+        renderNewStudentWeekdayPicker();
+      };
+      chip.addEventListener('click', toggle);
+      chip.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggle(); }});
+    });
+  }
+
+  document.getElementById('btnAddStudent').addEventListener('click', ()=>{
+    document.getElementById('newStudentName').value='';
+    document.getElementById('newStudentPaid').value='0';
+    document.getElementById('newStudentTime').value='';
+    const hskSel = document.getElementById('newStudentHsk');
+    hskSel.innerHTML = HSK_OPTIONS.map(h=>`<option value="${h}">${h}</option>`).join('');
+    newStudentWeekDays = [];
+    renderNewStudentWeekdayPicker();
+    openModal('modalAddStudent');
+    setTimeout(()=>document.getElementById('newStudentName').focus(),80);
+  });
+  document.getElementById('confirmAddStudent').addEventListener('click', addStudentFromModal);
+  document.getElementById('newStudentName').addEventListener('keydown', (e)=>{ if(e.key==='Enter') addStudentFromModal(); });
+
+  function addStudentFromModal(){
+    const nameInput = document.getElementById('newStudentName');
+    const name = nameInput.value.trim();
+    let paid = parseInt(document.getElementById('newStudentPaid').value,10);
+    if(isNaN(paid)||paid<0) paid = 0;
+    const hsk = document.getElementById('newStudentHsk').value || 'HSK 1';
+    const timeSlot = document.getElementById('newStudentTime').value.trim();
+    const student = {
+      id: uid(),
+      name: name || 'Học viên mới',
+      goal: '',
+      hsk: hsk,
+      startDate: new Date().toISOString().slice(0,10),
+      weekDays: newStudentWeekDays.slice(),
+      timeSlot: timeSlot,
+      notes: '',
+      paid: paid,
+      learned: 0,
+      remaining: paid,
+      sessions: []
+    };
+    state.students.push(student);
+    state.selectedId = student.id;
+    save();
+    closeModal('modalAddStudent');
+    renderAll();
+    toast('Đã tạo hồ sơ học viên mới','success');
+  }
+
+  // ---------- Sessions modal ----------
+  // Sessions now only store the buổi-thứ-mấy number (session.number).
+  // The total (mẫu số) is always read live from student.paid, set when the
+  // student was created / edited in hồ sơ — no need to type it each time.
+  let sessionsModalStudentId = null;
+
+  function openSessionsModal(studentId){
+    sessionsModalStudentId = studentId;
+    const student = getStudent(studentId);
+    document.getElementById('sessionsStudentName').textContent = student.name;
+    document.getElementById('newSessionDate').value = '';
+    document.getElementById('newSessionNumber').value = suggestNextNumber(student) || '';
+    document.getElementById('newSessionNote').value = '';
+    document.getElementById('quickPasteInput').value = '';
+    document.getElementById('newSessionTotalLabel').textContent = student.paid;
+    renderSessionsTable();
+    openModal('modalSessions');
+  }
+
+  document.getElementById('newSessionDate').addEventListener('change', ()=>{
+    const student = getStudent(sessionsModalStudentId);
+    if(!student) return;
+    const suggestion = suggestNextNumber(student);
+    if(suggestion) document.getElementById('newSessionNumber').value = suggestion;
+  });
+
+  function suggestNextNumber(student){
+    const sessions = student.sessions || [];
+    if(sessions.length===0) return 1;
+    const maxNum = sessions.reduce((max,s)=> Math.max(max, s.number||0), 0);
+    return maxNum + 1;
+  }
+
+  function renderSessionsTable(){
+    const student = getStudent(sessionsModalStudentId);
+    const tbody = document.getElementById('sessionsTableBody');
+    if(!student || !student.sessions || student.sessions.length===0){
+      tbody.innerHTML = `<tr><td colspan="4"><div class="empty-sessions">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
+        Chưa có buổi học nào. Thêm buổi học mới ở trên hoặc dùng "Nhập nhanh".
+      </div></td></tr>`;
+      return;
+    }
+    const sorted = student.sessions.slice().sort((a,b)=> a.date < b.date ? -1 : 1);
+    tbody.innerHTML = '';
+    sorted.forEach(sess=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input type="date" value="${sess.date}" data-field="date" data-id="${sess.id}"></td>
+        <td>
+          <div class="table-number-cell">
+            <input type="number" min="1" value="${sess.number}" data-field="number" data-id="${sess.id}">
+            <span class="denom">/ ${student.paid}</span>
+          </div>
+        </td>
+        <td><input type="text" value="${escapeHtml(sess.note||'')}" data-field="note" data-id="${sess.id}" placeholder="Ghi chú"></td>
+        <td class="row-actions">
+          <button class="btn btn-primary btn-sm" data-action="save" data-id="${sess.id}">Lưu</button>
+          <button class="btn btn-danger btn-sm" data-action="delete" data-id="${sess.id}">Xoá</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    tbody.querySelectorAll('[data-action="save"]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const id = btn.getAttribute('data-id');
+        const row = btn.closest('tr');
+        const dateVal = row.querySelector('[data-field="date"]').value;
+        let numVal = parseInt(row.querySelector('[data-field="number"]').value,10);
+        if(isNaN(numVal)||numVal<1) numVal = 1;
+        const noteVal = row.querySelector('[data-field="note"]').value;
+        const sess = student.sessions.find(s=>s.id===id);
+        if(sess){
+          sess.date = dateVal;
+          sess.number = numVal;
+          sess.note = noteVal;
+          syncLearnedFromSessions(student);
+          save();
+          renderSessionsTable();
+          renderProfile();
+          toast('Đã lưu buổi học · tự đồng bộ số buổi đã học','success');
+        }
+      });
+    });
+    tbody.querySelectorAll('[data-action="delete"]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const id = btn.getAttribute('data-id');
+        confirmAction('Xoá buổi học?', 'Bạn có chắc muốn xoá buổi học này khỏi lịch sử?', ()=>{
+          student.sessions = student.sessions.filter(s=>s.id!==id);
+          if(student.sessions.length===0){ student.learned = 0; recalc(student); }
+          else { syncLearnedFromSessions(student); }
+          save();
+          renderSessionsTable();
+          renderProfile();
+          toast('Đã xoá buổi học','danger');
+        });
+      });
+    });
+  }
+
+  document.getElementById('btnAddSession').addEventListener('click', ()=>{
+    const student = getStudent(sessionsModalStudentId);
+    if(!student) return;
+    const date = document.getElementById('newSessionDate').value;
+    const numRaw = document.getElementById('newSessionNumber').value.trim();
+    const note = document.getElementById('newSessionNote').value.trim();
+    const num = parseInt(numRaw,10);
+    if(!date || !numRaw || isNaN(num) || num<1){ toast('Vui lòng nhập ngày học và số buổi hợp lệ','danger'); return; }
+    student.sessions = student.sessions || [];
+    student.sessions.push({ id: uid(), date, number: num, note });
+    syncLearnedFromSessions(student);
+    save();
+    document.getElementById('newSessionDate').value='';
+    document.getElementById('newSessionNumber').value = suggestNextNumber(student) || '';
+    document.getElementById('newSessionNote').value='';
+    document.getElementById('newSessionTotalLabel').textContent = student.paid;
+    renderSessionsTable();
+    renderProfile();
+    toast(`Đã thêm buổi học mới · đã học ${student.learned}/${student.paid} buổi`,'success');
+  });
+
+  document.getElementById('btnQuickPaste').addEventListener('click', ()=>{
+    const student = getStudent(sessionsModalStudentId);
+    if(!student) return;
+    const raw = document.getElementById('quickPasteInput').value;
+    const lines = raw.split('\n').map(l=>l.trim()).filter(Boolean);
+    if(lines.length===0){ toast('Chưa có dữ liệu để nhập','danger'); return; }
+    const now = new Date();
+    let added = 0, failed = 0;
+    student.sessions = student.sessions || [];
+    lines.forEach(line=>{
+      // Accepts "24/2: 1/20" (denominator ignored, total is always student.paid)
+      // or the simpler "24/2: 1".
+      const m = /^(\d{1,2})\/(\d{1,2})\s*:\s*(\d+)(?:\s*\/\s*\d+)?\s*$/.exec(line);
+      if(!m){ failed++; return; }
+      const day = parseInt(m[1],10), month = parseInt(m[2],10);
+      const number = parseInt(m[3],10);
+      let year = now.getFullYear();
+      // if resulting date is much later than today (>60 days ahead), assume previous year
+      let candidate = new Date(year, month-1, day);
+      const diffDays = (candidate - now) / (1000*60*60*24);
+      if(diffDays > 60) year -= 1;
+      const iso = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+      student.sessions.push({ id: uid(), date: iso, number, note: '' });
+      added++;
+    });
+    if(added>0) syncLearnedFromSessions(student);
+    save();
+    document.getElementById('quickPasteInput').value='';
+    renderSessionsTable();
+    renderProfile();
+    if(added>0) toast(`Đã nhập ${added} buổi học${failed>0 ? `, bỏ qua ${failed} dòng lỗi`:''} · đã học ${student.learned}/${student.paid}`, 'success');
+    else toast('Không nhận diện được dòng nào hợp lệ','danger');
+  });
+
+  // ---------- Search ----------
+  document.getElementById('searchInput').addEventListener('input', renderStudentList);
+
+  // ---------- Render all ----------
+  function renderAll(){
+    renderStats();
+    renderStudentList();
+    renderProfile();
+  }
+
+  initApp();
+})();
+</script>
+</body>
+</html>
